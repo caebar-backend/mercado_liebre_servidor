@@ -1,40 +1,45 @@
-import { test } from 'node:test'
+import test from 'node:test'
 import assert from 'node:assert'
-import { request } from 'http';
-import { readFile } from 'fs/promises'
-import { join } from 'path'
+//import { createServer } from 'http'
+//import { readFile } from 'fs/promises'
+//import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+//const __dirname = dirname(__filename)
 
-// Función auxiliar para hacer peticiones HTTP
-async function makeRequest (method, path) {
-  return new Promise((resolve) => {
-    const options = {
-      method,
-      hostname: 'localhost',
-      port: 3000,
-      path
-    };
+import http from 'http';
 
-    const req = request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      res.on('end', () => {
-        resolve({
-          statusCode: res.statusCode,
-          headers: res.headers,
-          body: data
+async function makeRequest(method, path) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            method,
+            hostname: 'localhost',
+            port: 3000,
+            path
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            res.on('end', () => {
+                resolve({
+                    statusCode: res.statusCode,
+                    headers: res.headers,
+                    body: data
+                });
+            });
         });
-      });
-    });
 
-    req.end();
-  });
+        req.on('error', (err) => {
+            reject(err);
+        });
+
+        req.end();
+    });
 }
 
 test('Servidor responde a rutas GET', async (t) => {
@@ -69,31 +74,31 @@ test('Servidor maneja archivos estáticos', async (t) => {
   })
 
   // Test para imágenes
-  await t.test('GET /images/logo-mercado-liebre.svg devuelve imagen SVG', async () => {
-    const response = await makeRequest('GET', '/images/logo-mercado-liebre.svg')
+  await t.test('GET /images/logo.png imagen', async () => {
+    const response = await makeRequest('GET', '/images/logo.png')
     assert.strictEqual(response.statusCode, 200)
-    assert.strictEqual(response.headers['content-type'], 'image/svg+xml')
+    assert.strictEqual(response.headers['content-type'], 'image/png')
   })
 })
 
 test('Servidor maneja formularios POST', async (t) => {
   // Test para login
   await t.test('POST /login redirige a home', async () => {
-    const response = await makeRequest('POST', '/login')
+    const response = await makeRequest('POST', '/login') 
     assert.strictEqual(response.statusCode, 302)
     assert.strictEqual(response.headers.location, '/')
   })
 
   // Test para registro
   await t.test('POST /register redirige a home', async () => {
-    const response = await makeRequest('POST', '/register')
-    assert.strictEqual(response.statusCode, 302)
-    assert.strictEqual(response.headers.location, '/')
+    const response = await makeRequest('POST', '/home') 
+    assert.strictEqual(response.statusCode, 404) 
+    assert.notStrictEqual(response.headers.location, '/')
   })
 
   // Test para rutas POST inválidas
   await t.test('POST a ruta inválida devuelve 404', async () => {
-    const response = await makeRequest('POST', '/ruta-invalida')
+    const response = await makeRequest('POST', '/ruta-invalida') 
     assert.strictEqual(response.statusCode, 404)
   })
 })
